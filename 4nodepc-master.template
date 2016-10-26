@@ -26,8 +26,8 @@
       "MaxLength" : "32",
       "NoEcho" : "true"
     },
-    "EncryptionKeyPhrase" : {
-      "Description" : "The text string used as the base word from which to generate an encryption key for the Informatica domain.",
+	"EncryptionKeyPhrase" : {
+	  "Description" : "The text string used as the base word from which to generate an encryption key for the Informatica domain.", 
       "Type" : "String",
       "MinLength" : "8",
       "MaxLength" : "32",
@@ -70,8 +70,7 @@
 		  "Parameters" : ["AvailabilityZone1","AvailabilityZone2","InformaticaDomainPassword","EncryptionKeyPhrase","DatabaseType","DatabaseUsername","DatabasePassword","KeyName","PlacementGroupName"]
       }]    
     }
-  },
-  
+  },  
   "Mappings" : {
     "Config" : {
       "Settings" : {
@@ -79,7 +78,6 @@
         "InstanceType" : "c3.2xlarge",
         "InformaticaDomainName" : "InfaDefaultDomain",
         "DatabaseName" : "pc",
-        "DatabaseIdentifier" : "pc-db",
         "Node1Name" : "PowercenterNode1",
         "Node2Name" : "PowercenterNode2",
         "Node3Name" : "PowercenterNode3",
@@ -210,7 +208,7 @@
       "Type" : "AWS::CloudFormation::Stack",
       "DependsOn" : "RDSInstance",
       "Properties" : {
-        "TemplateURL" : "https://s3-ap-southeast-1.amazonaws.com/cnfscripts/byol/windows/4node/4nodepc-instance.template",
+        "TemplateURL" : "https://s3-ap-southeast-1.amazonaws.com/cnfscripts/byol/linux/4node/4nodepc-instance.template",
         "Parameters" : {
           "KeyName" : {
             "Ref" : "KeyName"
@@ -248,7 +246,7 @@
           "RepositoryDBPassword" : {
             "Ref" : "DatabasePassword"
           },
-          "RDPLocation" : {
+          "SSHLocation" : {
             "Fn::FindInMap" : [ "Config", "Settings", "RDPNetwork" ]
           },
           "SubnetId" : {

@@ -3,7 +3,7 @@
   "Description" : "AWS CloudFormation template for creating four nodes of windows AMI and installing Informatica server.",
   "Parameters" : {
     "KeyName" : {
-      "Description" : "Name of an existing EC2 key pair to enable SSH or RDS access to the instance.",
+      "Description" : "Name of an existing EC2 key pair to enable SSH or RDS access to the instance",
       "Type" : "String",
       "MinLength" : "1",
       "MaxLength" : "255",
@@ -26,15 +26,15 @@
       "ConstraintDescription" : "can contain only ASCII characters.",
       "NoEcho" : "true"
     },
-    "EncryptionKeyPhrase" : {
-      "Description" : "The text string used as the base word from which to generate an encryption key for the Informatica domain.",
+	"EncryptionKeyPhrase" : {
+	  "Description" : "The text string used as the base word from which to generate an encryption key for the Informatica domain.", 
       "Type" : "String",
       "MinLength" : "8",
       "MaxLength" : "32",
       "NoEcho" : "true",
-      "AllowedPattern" : "^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=\\S+$).{8,}$",
-      "ConstraintDescription" : "It should be 8 to 20 characters long, at least one uppercase letter at least one lowercase letter-at least one number Does not contain spaces"
-    },
+	  "AllowedPattern" : "^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=\\S+$).{8,}$",
+	  "ConstraintDescription" : "It should be 8 to 20 characters long, at least one uppercase letter at least one lowercase letter-at least one number Does not contain spaces"
+	},
     "DatabaseType" : {
       "Description" : "The type of database to use in Amazon RDS. Currently, you can only use Oracle.",
       "Type" : "String",
@@ -100,8 +100,8 @@
       "ConstraintDescription" : "can contain only ASCII characters.",
       "NoEcho" : "true"
     },
-    "RDPLocation" : {
-      "Description" : "The range of IP address that you can use to RDP to the EC2 instance.",
+    "SSHLocation" : {
+      "Description" : "The range of IP address that you can use to RDP or SSH to the EC2 instance",
       "Type" : "String",
       "MinLength" : "9",
       "MaxLength" : "18",
@@ -133,7 +133,7 @@
   "Mappings" : {
     "RegionMap" : {
       "us-east-1" : {
-        "AMI" : "ami-82c04d95"
+        "AMI" : "ami-8dd0589a"
       }
     },
     "Config" : {
@@ -144,11 +144,11 @@
         "InformaticaServices" : 2,
         "Node1Name" : "PowercenterNode1",
         "Node2Name" : "PowercenterNode2",
-        "Node3Name" : "PowercenterNode3",
-        "Node4Name" : "PowercenterNode4",
+		"Node3Name" : "PowercenterNode3",
+		"Node4Name" : "PowercenterNode4",
         "Node2ServesAsGateway" : 1,
-        "Node3ServesAsGateway" : 1,
-        "Node4ServesAsGateway" : 1,
+		"Node3ServesAsGateway" : 1,
+		"Node4ServesAsGateway" : 1,
         "GridName" : "InfaDefaultGrid"
       }
     }
@@ -172,12 +172,20 @@
         },
         "SecurityGroupIngress" : [ {
           "IpProtocol" : "tcp",
+          "FromPort" : "22",
+          "ToPort" : "22",
+          "CidrIp" : {
+            "Ref" : "SSHLocation"
+          }
+        }, {
+          "IpProtocol" : "tcp",
           "FromPort" : "0",
           "ToPort" : "65535",
           "CidrIp" : {
-            "Ref" : "RDPLocation"
+            "Ref" : "SSHLocation"
           }
-        } ]
+		}
+		]	
       }
     },
     "InstanceSecurityGroupIngress" : {
@@ -207,25 +215,16 @@
       "Type" : "AWS::EC2::Instance",
       "Metadata" : {
         "AWS::CloudFormation::Init" : {
-          "config" : {
+			"config" : {
             "commands" : {
               "1-setup" : {
-                "command" : {
-                  "Fn::Join" : [ "", [ "powershell -F C:\\InfaEc2Scripts\\winInfaInstallerEc2.ps1 ", {
-                    "Ref" : "InformaticaDomainPassword"
-                  }, " ", {
-                    "Ref" : "DatabasePassword"
-                  }, " ", {
-                    "Ref" : "RepositoryDBPassword"
-                  }, " ", {
-                    "Ref" : "EncryptionKeyPhrase"
-                  } ] ]
-                }
-              }
+				"command" : { "Fn::Join" : [ "", [ "sh /home/ec2-user/InfaEc2Scripts/linInfaInstallerEc2.sh ", { "Ref" : "InformaticaDomainPassword" } ," ", { "Ref" : "DatabasePassword" }  ," ", { "Ref" : "RepositoryDBPassword" }  ," ", { "Ref" : "EncryptionKeyPhrase" } 
+              ]]}
             }
+				}
           }
-        }
-      },
+		  }
+        },
       "Properties" : {
         "Tags" : [ {
           "Key" : "Name",
@@ -257,48 +256,40 @@
             "Ref" : "AWS::NoValue"
           } ]
         },
-        "UserData" : {
-          "Fn::Base64" : {
-            "Fn::Join" : [ "", [ "<powershell>\n", "echo \"Initializing variables\" \n", "$env:CREATE_DOMAIN=1 \n", "$env:JOIN_DOMAIN=0 \n", "$env:SERVES_AS_GATEWAY=0 \n", "$env:DB_TYPE=\"", {
+        "UserData" : { "Fn::Base64" : { "Fn::Join" : ["", [
+         "#!/bin/bash \n", "echo \"Initializing variables\" \n", "export CREATE_DOMAIN=1 \n", "export JOIN_DOMAIN=0 \n", "export SERVES_AS_GATEWAY=0 \n", "export DB_TYPE=\"", {
               "Ref" : "DatabaseType"
-            }, "\"\n", "$env:REPOSITORY_SERVICE_NAME=\"", {
+            }, "\"\n", "export REPOSITORY_SERVICE_NAME=\"", {
               "Fn::FindInMap" : [ "Config", "Settings", "RepositoryServiceName" ]
-            }, "\"\n", "$env:INTEGRATION_SERVICE_NAME=\"", {
+            }, "\"\n", "export INTEGRATION_SERVICE_NAME=\"", {
               "Fn::FindInMap" : [ "Config", "Settings", "IntegrationServiceName" ]
-            }, "\"\n", "$env:DB_ADDRESS=\"", {
+            }, "\"\n", "export DB_ADDRESS=\"", {
               "Ref" : "DatabaseAddress"
-            }, "\"\n", "$env:DB_PORT=\"", {
+            }, "\"\n", "export DB_PORT=\"", {
               "Ref" : "DatabasePort"
-            }, "\"\n", "$env:DB_UNAME=\"", {
+            }, "\"\n", "export DB_UNAME=\"", {
               "Ref" : "DatabaseUsername"
-            }, "\"\n", "$env:DB_SERVICENAME=\"", {
+            }, "\"\n", "export DB_SERVICENAME=\"", {
               "Ref" : "DatabaseServiceName"
-            }, "\"\n", "$env:DOMAIN_NAME=\"", {
+            }, "\"\n", "export DOMAIN_NAME=\"", {
               "Fn::FindInMap" : [ "Config", "Settings", "InformaticaDomainName" ]
-            }, "\"\n", "$env:NODE_NAME=\"", {
+            }, "\"\n", "export NODE_NAME=\"", {
               "Fn::FindInMap" : [ "Config", "Settings", "Node1Name" ]
-            }, "\"\n", "$env:GRID_NAME=\"", {
+            }, "\"\n", "export GRID_NAME=\"", {
               "Fn::FindInMap" : [ "Config", "Settings", "GridName" ]
-            }, "\"\n", "$env:REPO_USER=\"", {
+            }, "\"\n", "export REPO_USER=\"", {
               "Ref" : "RepositoryDBUser"
-            }, "\"\n", "$env:INFORMATICA_SERVICES=\"", {
+            }, "\"\n", "export INFORMATICA_SERVICES=\"", {
               "Fn::FindInMap" : [ "Config", "Settings", "InformaticaServices" ]
-            }, "\"\n", "$env:JOIN_NODE_NAME=\"InformaticaNodeName\" \n", "$env:DOMAIN_HOST_NAME=\"$env:COMPUTERNAME\" \n", "echo \"running cfn init\" \n", "cfn-init.exe -v -s ", {
-              "Ref" : "AWS::StackId"
-            }, " -r InformaticaMasterEC2Instance ", "    --region ", {
-              "Ref" : "AWS::Region"
-            }, "\n", "cfn-signal.exe -e $LASTEXITCODE ", {
-              "Fn::Base64" : {
-                "Ref" : "WaitHandle"
-              }
-            }, "\n", "</powershell>" ] ]
-          }
+            }, "\"\n", "export JOIN_NODE_NAME=\"InformaticaNodeName\" \n", "export DOMAIN_HOST_NAME=\"$HOSTNAME\" \n", "echo \"running cfn init\" \n", "cfn-init -s ", { "Ref" : "AWS::StackId" }, " -r InformaticaMasterEC2Instance ",
+          "    --region ", { "Ref" : "AWS::Region" }, "\n",
+		 "/opt/aws/bin/cfn-signal -e $? '", { "Ref" : "WaitHandle" }, "'\n"
+          ]]}}
         }
-      }
     },
     "WaitHandle" : {
       "Type" : "AWS::CloudFormation::WaitConditionHandle"
-    },	
+    },
     "InformaticaMasterWaitCondition" : {
       "Type" : "AWS::CloudFormation::WaitCondition",
       "DependsOn" : "InformaticaMasterEC2Instance",
@@ -306,7 +297,7 @@
         "Handle" : {
           "Ref" : "WaitHandle"
         },
-        "Timeout" : "8000"
+        "Timeout" : "6000"
       }
     },
     "InformaticaNode2IPAddress" : {
@@ -317,10 +308,10 @@
           "Ref" : "InformaticaNode2"
         }
       }
-    },
-    "InformaticaNode2" : {
+    },	
+	"InformaticaNode2" : {
       "Type" : "AWS::EC2::Instance",
-      "DependsOn" : "InformaticaMasterWaitCondition",
+	   "DependsOn" : "InformaticaMasterWaitCondition",
       "Properties" : {
         "Tags" : [ {
           "Key" : "Name",
@@ -328,15 +319,13 @@
             "Fn::FindInMap" : [ "Config", "Settings", "Node2Name" ]
           }
         } ],
+        "ImageId" : {
+          "Fn::FindInMap" : [ "RegionMap", {
+            "Ref" : "AWS::Region"
+          }, "AMI" ]
+        },
         "SubnetId" : {
           "Ref" : "SubnetId"
-        },
-        "PlacementGroupName" : {
-          "Fn::If" : [ "UsePlacementGroup", {
-            "Ref" : "PlacementGroupName"
-          }, {
-            "Ref" : "AWS::NoValue"
-          } ]
         },
         "SecurityGroupIds" : [ {
           "Ref" : "InstanceSecurityGroup"
@@ -347,47 +336,42 @@
         "KeyName" : {
           "Ref" : "KeyName"
         },
-        "ImageId" : {
-          "Fn::FindInMap" : [ "RegionMap", {
-            "Ref" : "AWS::Region"
-          }, "AMI" ]
+        "PlacementGroupName" : {
+          "Fn::If" : [ "UsePlacementGroup", {
+            "Ref" : "PlacementGroupName"
+          }, {
+            "Ref" : "AWS::NoValue"
+          } ]
         },
-        "UserData" : {
-          "Fn::Base64" : {
-            "Fn::Join" : [ "", [ "<powershell>\n", "echo \"Initializing variables\" \n", "$env:CREATE_DOMAIN=0 \n", "$env:JOIN_DOMAIN=1 \n", "$env:SERVES_AS_GATEWAY=", {
+        "UserData" : { "Fn::Base64" : { "Fn::Join" : ["", [
+         "#!/bin/bash \n", "echo \"Initializing variables\" \n", "export SINGLE_NODE=0 \n", "export CREATE_DOMAIN=0 \n", "export JOIN_DOMAIN=1 \n", "export SERVES_AS_GATEWAY=", {
               "Fn::FindInMap" : [ "Config", "Settings", "Node2ServesAsGateway" ]
-            }, " \n", "$env:DB_TYPE=\"", {
+            }, "\n", "export DB_TYPE=\"", {
               "Ref" : "DatabaseType"
-            }, "\"\n", "$env:DB_ADDRESS=\"", {
+            }, "\"\n", "export DB_ADDRESS=\"", {
               "Ref" : "DatabaseAddress"
-            }, "\"\n", "$env:DB_PORT=\"", {
+            }, "\"\n", "export DB_PORT=\"", {
               "Ref" : "DatabasePort"
-            }, "\"\n", "$env:DB_UNAME=\"", {
+            }, "\"\n", "export DB_UNAME=\"", {
               "Ref" : "DatabaseUsername"
-            }, "\"\n", "$env:DB_SERVICENAME=\"", {
+            }, "\"\n", "export DB_SERVICENAME=\"", {
               "Ref" : "DatabaseServiceName"
-            }, "\"\n", "$env:DOMAIN_NAME=\"", {
+            }, "\"\n", "export DOMAIN_NAME=\"", {
               "Fn::FindInMap" : [ "Config", "Settings", "InformaticaDomainName" ]
-            }, "\"\n", "$env:NODE_NAME=\"", {
+            }, "\"\n", "export NODE_NAME=\"", {
               "Fn::FindInMap" : [ "Config", "Settings", "Node1Name" ]
-            }, "\"\n", "$env:JOIN_NODE_NAME=\"", {
-              "Fn::FindInMap" : [ "Config", "Settings", "Node2Name" ]
-            }, "\"\n", "$env:INTEGRATION_SERVICE_NAME=\"", {
-              "Fn::FindInMap" : [ "Config", "Settings", "IntegrationServiceName" ]
-            }, "\"\n", "$env:GRID_NAME=\"", {
+            }, "\"\n", "export GRID_NAME=\"", {
               "Fn::FindInMap" : [ "Config", "Settings", "GridName" ]
-            }, "\"\n", "$env:DOMAIN_HOST_NAME=\"", {
-              "Fn::GetAtt" : [ "InformaticaMasterEC2Instance", "PrivateIp" ]
-            }, "\"\n", "C:\\InfaEc2Scripts\\winInfaInstallerEc2.ps1 ", {
-              "Ref" : "InformaticaDomainPassword"
-            }, " ", {
-              "Ref" : "DatabasePassword"
-            }, " null ", {
-              "Ref" : "EncryptionKeyPhrase"
-            }, "\n", "</powershell>" ] ]
-          }
+            }, "\"\n","export JOIN_NODE_NAME=\"", {
+              "Fn::FindInMap" : [ "Config", "Settings", "Node2Name" ]
+            }, "\"\n", "export INTEGRATION_SERVICE_NAME=\"", {
+              "Fn::FindInMap" : [ "Config", "Settings", "IntegrationServiceName" ]
+            }, "\"\n","export DOMAIN_HOST_NAME=\"", {
+               "Fn::GetAtt" : [ "InformaticaMasterEC2Instance", "PrivateIp" ]
+            }, "\"\n", "sh /home/ec2-user/InfaEc2Scripts/linInfaInstallerEc2.sh ", { "Ref" : "InformaticaDomainPassword" } ," ", { "Ref" : "DatabasePassword" }  ," null "  , { "Ref" : "EncryptionKeyPhrase" }
+		
+          ]]}}
         }
-      }
     },
     "InformaticaNode3IPAddress" : {
       "Type" : "AWS::EC2::EIP",
@@ -397,10 +381,10 @@
           "Ref" : "InformaticaNode3"
         }
       }
-    },
-    "InformaticaNode3" : {
+    },		
+	"InformaticaNode3" : {
       "Type" : "AWS::EC2::Instance",
-      "DependsOn" : "InformaticaMasterWaitCondition",
+	   "DependsOn" : "InformaticaMasterWaitCondition",
       "Properties" : {
         "Tags" : [ {
           "Key" : "Name",
@@ -408,15 +392,13 @@
             "Fn::FindInMap" : [ "Config", "Settings", "Node3Name" ]
           }
         } ],
+        "ImageId" : {
+          "Fn::FindInMap" : [ "RegionMap", {
+            "Ref" : "AWS::Region"
+          }, "AMI" ]
+        },
         "SubnetId" : {
           "Ref" : "SubnetId"
-        },
-        "PlacementGroupName" : {
-          "Fn::If" : [ "UsePlacementGroup", {
-            "Ref" : "PlacementGroupName"
-          }, {
-            "Ref" : "AWS::NoValue"
-          } ]
         },
         "SecurityGroupIds" : [ {
           "Ref" : "InstanceSecurityGroup"
@@ -427,47 +409,42 @@
         "KeyName" : {
           "Ref" : "KeyName"
         },
-        "ImageId" : {
-          "Fn::FindInMap" : [ "RegionMap", {
-            "Ref" : "AWS::Region"
-          }, "AMI" ]
+        "PlacementGroupName" : {
+          "Fn::If" : [ "UsePlacementGroup", {
+            "Ref" : "PlacementGroupName"
+          }, {
+            "Ref" : "AWS::NoValue"
+          } ]
         },
-        "UserData" : {
-          "Fn::Base64" : {
-            "Fn::Join" : [ "", [ "<powershell>\n", "echo \"Initializing variables\" \n", "$env:CREATE_DOMAIN=0 \n", "$env:JOIN_DOMAIN=1 \n", "$env:SERVES_AS_GATEWAY=", {
-              "Fn::FindInMap" : [ "Config", "Settings", "Node2ServesAsGateway" ]
-            }, " \n", "$env:DB_TYPE=\"", {
+        "UserData" : { "Fn::Base64" : { "Fn::Join" : ["", [
+         "#!/bin/bash \n", "echo \"Initializing variables\" \n", "export SINGLE_NODE=0 \n", "export CREATE_DOMAIN=0 \n", "export JOIN_DOMAIN=1 \n", "export SERVES_AS_GATEWAY=", {
+              "Fn::FindInMap" : [ "Config", "Settings", "Node3ServesAsGateway" ]
+            }, "\n", "export DB_TYPE=\"", {
               "Ref" : "DatabaseType"
-            }, "\"\n", "$env:DB_ADDRESS=\"", {
+            }, "\"\n", "export DB_ADDRESS=\"", {
               "Ref" : "DatabaseAddress"
-            }, "\"\n", "$env:DB_PORT=\"", {
+            }, "\"\n", "export DB_PORT=\"", {
               "Ref" : "DatabasePort"
-            }, "\"\n", "$env:DB_UNAME=\"", {
+            }, "\"\n", "export DB_UNAME=\"", {
               "Ref" : "DatabaseUsername"
-            }, "\"\n", "$env:DB_SERVICENAME=\"", {
+            }, "\"\n", "export DB_SERVICENAME=\"", {
               "Ref" : "DatabaseServiceName"
-            }, "\"\n", "$env:DOMAIN_NAME=\"", {
+            }, "\"\n", "export DOMAIN_NAME=\"", {
               "Fn::FindInMap" : [ "Config", "Settings", "InformaticaDomainName" ]
-            }, "\"\n", "$env:NODE_NAME=\"", {
+            }, "\"\n", "export NODE_NAME=\"", {
               "Fn::FindInMap" : [ "Config", "Settings", "Node1Name" ]
-            }, "\"\n", "$env:JOIN_NODE_NAME=\"", {
-              "Fn::FindInMap" : [ "Config", "Settings", "Node3Name" ]
-            }, "\"\n", "$env:INTEGRATION_SERVICE_NAME=\"", {
-              "Fn::FindInMap" : [ "Config", "Settings", "IntegrationServiceName" ]
-            }, "\"\n", "$env:GRID_NAME=\"", {
+            }, "\"\n", "export GRID_NAME=\"", {
               "Fn::FindInMap" : [ "Config", "Settings", "GridName" ]
-            }, "\"\n", "$env:DOMAIN_HOST_NAME=\"", {
-              "Fn::GetAtt" : [ "InformaticaMasterEC2Instance", "PrivateIp" ]
-            }, "\"\n", "C:\\InfaEc2Scripts\\winInfaInstallerEc2.ps1 ", {
-              "Ref" : "InformaticaDomainPassword"
-            }, " ", {
-              "Ref" : "DatabasePassword"
-            }, " null ", {
-              "Ref" : "EncryptionKeyPhrase"
-            }, "\n", "</powershell>" ] ]
-          }
+            }, "\"\n","export JOIN_NODE_NAME=\"", {
+              "Fn::FindInMap" : [ "Config", "Settings", "Node3Name" ]
+            }, "\"\n", "export INTEGRATION_SERVICE_NAME=\"", {
+              "Fn::FindInMap" : [ "Config", "Settings", "IntegrationServiceName" ]
+            }, "\"\n","export DOMAIN_HOST_NAME=\"", {
+               "Fn::GetAtt" : [ "InformaticaMasterEC2Instance", "PrivateIp" ]
+            }, "\"\n", "sh /home/ec2-user/InfaEc2Scripts/linInfaInstallerEc2.sh ", { "Ref" : "InformaticaDomainPassword" } ," ", { "Ref" : "DatabasePassword" }  ," null "  , { "Ref" : "EncryptionKeyPhrase" }
+		
+          ]]}}
         }
-      }
     },
     "InformaticaNode4IPAddress" : {
       "Type" : "AWS::EC2::EIP",
@@ -477,10 +454,10 @@
           "Ref" : "InformaticaNode4"
         }
       }
-    },
-    "InformaticaNode4" : {
+    },			
+	"InformaticaNode4" : {
       "Type" : "AWS::EC2::Instance",
-      "DependsOn" : "InformaticaMasterWaitCondition",
+	   "DependsOn" : "InformaticaMasterWaitCondition",
       "Properties" : {
         "Tags" : [ {
           "Key" : "Name",
@@ -488,15 +465,13 @@
             "Fn::FindInMap" : [ "Config", "Settings", "Node4Name" ]
           }
         } ],
+        "ImageId" : {
+          "Fn::FindInMap" : [ "RegionMap", {
+            "Ref" : "AWS::Region"
+          }, "AMI" ]
+        },
         "SubnetId" : {
           "Ref" : "SubnetId"
-        },
-        "PlacementGroupName" : {
-          "Fn::If" : [ "UsePlacementGroup", {
-            "Ref" : "PlacementGroupName"
-          }, {
-            "Ref" : "AWS::NoValue"
-          } ]
         },
         "SecurityGroupIds" : [ {
           "Ref" : "InstanceSecurityGroup"
@@ -507,49 +482,45 @@
         "KeyName" : {
           "Ref" : "KeyName"
         },
-        "ImageId" : {
-          "Fn::FindInMap" : [ "RegionMap", {
-            "Ref" : "AWS::Region"
-          }, "AMI" ]
+        "PlacementGroupName" : {
+          "Fn::If" : [ "UsePlacementGroup", {
+            "Ref" : "PlacementGroupName"
+          }, {
+            "Ref" : "AWS::NoValue"
+          } ]
         },
-        "UserData" : {
-          "Fn::Base64" : {
-            "Fn::Join" : [ "", [ "<powershell>\n", "echo \"Initializing variables\" \n", "$env:CREATE_DOMAIN=0 \n", "$env:JOIN_DOMAIN=1 \n", "$env:SERVES_AS_GATEWAY=", {
+        "UserData" : { "Fn::Base64" : { "Fn::Join" : ["", [
+         "#!/bin/bash \n", "echo \"Initializing variables\" \n", "export SINGLE_NODE=0 \n", "export CREATE_DOMAIN=0 \n", "export JOIN_DOMAIN=1 \n", "export SERVES_AS_GATEWAY=", {
               "Fn::FindInMap" : [ "Config", "Settings", "Node4ServesAsGateway" ]
-            }, " \n", "$env:DB_TYPE=\"", {
+            }, "\n", "export DB_TYPE=\"", {
               "Ref" : "DatabaseType"
-            }, "\"\n", "$env:DB_ADDRESS=\"", {
+            }, "\"\n", "export DB_ADDRESS=\"", {
               "Ref" : "DatabaseAddress"
-            }, "\"\n", "$env:DB_PORT=\"", {
+            }, "\"\n", "export DB_PORT=\"", {
               "Ref" : "DatabasePort"
-            }, "\"\n", "$env:DB_UNAME=\"", {
+            }, "\"\n", "export DB_UNAME=\"", {
               "Ref" : "DatabaseUsername"
-            }, "\"\n", "$env:DB_SERVICENAME=\"", {
+            }, "\"\n", "export DB_SERVICENAME=\"", {
               "Ref" : "DatabaseServiceName"
-            }, "\"\n", "$env:DOMAIN_NAME=\"", {
+            }, "\"\n", "export DOMAIN_NAME=\"", {
               "Fn::FindInMap" : [ "Config", "Settings", "InformaticaDomainName" ]
-            }, "\"\n", "$env:NODE_NAME=\"", {
+            }, "\"\n", "export NODE_NAME=\"", {
               "Fn::FindInMap" : [ "Config", "Settings", "Node1Name" ]
-            }, "\"\n", "$env:JOIN_NODE_NAME=\"", {
-              "Fn::FindInMap" : [ "Config", "Settings", "Node4Name" ]
-            }, "\"\n", "$env:INTEGRATION_SERVICE_NAME=\"", {
-              "Fn::FindInMap" : [ "Config", "Settings", "IntegrationServiceName" ]
-            }, "\"\n", "$env:GRID_NAME=\"", {
+            }, "\"\n", "export GRID_NAME=\"", {
               "Fn::FindInMap" : [ "Config", "Settings", "GridName" ]
-            }, "\"\n", "$env:DOMAIN_HOST_NAME=\"", {
-              "Fn::GetAtt" : [ "InformaticaMasterEC2Instance", "PrivateIp" ]
-            }, "\"\n", "C:\\InfaEc2Scripts\\winInfaInstallerEc2.ps1 ", {
-              "Ref" : "InformaticaDomainPassword"
-            }, " ", {
-              "Ref" : "DatabasePassword"
-            }, " null ", {
-              "Ref" : "EncryptionKeyPhrase"
-            }, "\n", "</powershell>" ] ]
-          }
+            }, "\"\n","export JOIN_NODE_NAME=\"", {
+              "Fn::FindInMap" : [ "Config", "Settings", "Node4Name" ]
+            }, "\"\n", "export INTEGRATION_SERVICE_NAME=\"", {
+              "Fn::FindInMap" : [ "Config", "Settings", "IntegrationServiceName" ]
+            }, "\"\n","export DOMAIN_HOST_NAME=\"", {
+               "Fn::GetAtt" : [ "InformaticaMasterEC2Instance", "PrivateIp" ]
+            }, "\"\n", "sh /home/ec2-user/InfaEc2Scripts/linInfaInstallerEc2.sh ", { "Ref" : "InformaticaDomainPassword" } ," ", { "Ref" : "DatabasePassword" }  ," null "  , { "Ref" : "EncryptionKeyPhrase" }
+		
+          ]]}}
         }
-      }
     }
   },
+  
   "Outputs" : {
     "InstanceId" : {
       "Description" : "InstanceId of the newly created EC2 instance",
