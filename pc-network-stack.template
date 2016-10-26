@@ -1,0 +1,207 @@
+{
+  "AWSTemplateFormatVersion" : "2010-09-09",
+  "Description" : "Creates a VPC network for a PowerCenter deployment.",
+  "Parameters" : {
+    "AZ1" : {
+      "Description" : "Name of the availability zone that contains the public and private subnets. Enter a valid zone for the region.",
+      "Type" : "String",
+      "Default" : "us-west-2c",
+      "AllowedValues" : [ "eu-west-1a", "eu-west-1b", "eu-west-1c", "us-east-1a", "us-east-1b", "us-east-1c", "us-east-1d", "us-west-1a", "us-west-1b", "ap-southeast-1a", "ap-southeast-1b", "ap-northeast-1a", "ap-northeast-1b", "ap-northeast-1c", "us-west-2a", "us-west-2b", "us-west-2c", "sa-east-1a", "sa-east-1b" ],
+      "ConstraintDescription" : "Must be a valid EC2 Availabilty zone for region being deployed to. Only supports eu-west-1 ,us-east-1 & us-west-1 etc <- You can customize if you define a constraint"
+    },
+    "AZ2" : {
+      "Description" : "Name of the backup availability zone. Enter an availability zone in the same region as AZ1.",
+      "Type" : "String",
+      "Default" : "us-west-2b",
+      "AllowedValues" : [ "eu-west-1a", "eu-west-1b", "eu-west-1c", "us-east-1a", "us-east-1b", "us-east-1c", "us-east-1d", "us-west-1a", "us-west-1b", "ap-southeast-1a", "ap-southeast-1b", "ap-northeast-1a", "ap-northeast-1b", "ap-northeast-1c", "us-west-2a", "us-west-2b", "us-west-2c", "sa-east-1a", "sa-east-1b" ],
+      "ConstraintDescription" : "Must be a valid EC2 Availabilty zone for region being deployed to. Only supports eu-west-1 ,us-east-1 & us-west-1 etc <- You can customize if you define a constraint"
+    }
+  },
+  "Mappings" : {
+    "SubnetConfig" : {
+      "VPC" : {
+        "CIDR" : "172.16.0.0/20"
+      },
+      "PublicDMZ" : {
+        "CIDR" : "172.16.0.0/22"
+      },
+      "DataTier1" : {
+        "CIDR" : "172.16.4.0/24"
+      },
+      "DataTier2" : {
+        "CIDR" : "172.16.5.0/24"
+      }
+    }
+  },
+  "Resources" : {
+    "VPC" : {
+      "Type" : "AWS::EC2::VPC",
+      "Properties" : {
+        "CidrBlock" : {
+          "Fn::FindInMap" : [ "SubnetConfig", "VPC", "CIDR" ]
+        },
+        "EnableDnsSupport" : "true",
+        "EnableDnsHostnames" : "true",
+        "Tags" : [ {
+          "Key" : "Name",
+          "Value" : "PowerCenter"
+        }, {
+          "Key" : "Application",
+		  "Value" : "NetworkVPC"
+        } ]
+      }
+    },
+    "PublicDMZSubnet" : {
+      "Type" : "AWS::EC2::Subnet",
+      "Properties" : {
+        "VpcId" : {
+          "Ref" : "VPC"
+        },
+        "CidrBlock" : {
+          "Fn::FindInMap" : [ "SubnetConfig", "PublicDMZ", "CIDR" ]
+        },
+        "AvailabilityZone" : {
+          "Ref" : "AZ1"
+        },
+        "Tags" : [ {
+          "Key" : "Name",
+          "Value" : "PowerCenter-PublicDMZSubnet"
+        }, {
+          "Key" : "Application",
+           "Value" : "NetworkPublicDMZSubnet"
+        } ]
+      }
+    },
+    "DataTierSubnet1" : {
+      "Type" : "AWS::EC2::Subnet",
+      "Properties" : {
+        "VpcId" : {
+          "Ref" : "VPC"
+        },
+        "AvailabilityZone" : {
+          "Ref" : "AZ1"
+        },
+        "CidrBlock" : {
+          "Fn::FindInMap" : [ "SubnetConfig", "DataTier1", "CIDR" ]
+        },
+        "Tags" : [ {
+          "Key" : "Name",
+          "Value" : "PowerCenter-DataTier1"
+        }, {
+          "Key" : "Application",
+          "Value" : "NetworkDataTierSubnet1"
+        } ]
+      }
+    },
+    "DataTierSubnet2" : {
+      "Type" : "AWS::EC2::Subnet",
+      "Properties" : {
+        "VpcId" : {
+          "Ref" : "VPC"
+        },
+        "AvailabilityZone" : {
+          "Ref" : "AZ2"
+        },
+        "CidrBlock" : {
+          "Fn::FindInMap" : [ "SubnetConfig", "DataTier2", "CIDR" ]
+        },
+        "Tags" : [ {
+          "Key" : "Name",
+          "Value" : "PowerCenter-DataTier2"
+        }, {
+          "Key" : "Application",
+          "Value" : "NetworkDataTierSubnet2"
+        } ]
+      }
+    },
+    "InternetGateway" : {
+      "Type" : "AWS::EC2::InternetGateway",
+      "Properties" : {
+        "Tags" : [ {
+          "Key" : "Name",
+          "Value" : "PowerCenter-IGW"
+        }, {
+          "Key" : "Application",
+          "Value" : "NetworkInternetGateway"
+        } ]
+      }
+    },
+    "GatewayToInternet" : {
+      "Type" : "AWS::EC2::VPCGatewayAttachment",
+      "Properties" : {
+        "VpcId" : {
+          "Ref" : "VPC"
+        },
+        "InternetGatewayId" : {
+          "Ref" : "InternetGateway"
+        }
+      }
+    },
+    "PublicRouteTable" : {
+      "Type" : "AWS::EC2::RouteTable",
+      "Properties" : {
+        "VpcId" : {
+          "Ref" : "VPC"
+        },
+        "Tags" : [ {
+          "Key" : "Name",
+          "Value" : "PowerCenter-RouteTable"
+        }, {
+          "Key" : "Application",
+          "Value" : {
+            "Ref" : "AWS::StackName"
+          }
+        } ]
+      }
+    },
+    "PublicRoute" : {
+      "Type" : "AWS::EC2::Route",
+      "Properties" : {
+        "RouteTableId" : {
+          "Ref" : "PublicRouteTable"
+        },
+        "DestinationCidrBlock" : "0.0.0.0/0",
+        "GatewayId" : {
+          "Ref" : "InternetGateway"
+        }
+      }
+    },
+    "PublicDMZRouteTableAssociation" : {
+      "Type" : "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties" : {
+        "SubnetId" : {
+          "Ref" : "PublicDMZSubnet"
+        },
+        "RouteTableId" : {
+          "Ref" : "PublicRouteTable"
+        }
+      }
+    }
+  },
+  "Outputs" : {
+    "VPC" : {
+      "Description" : "VPCId of the newly created VPC",
+      "Value" : {
+        "Ref" : "VPC"
+      }
+    },
+    "PublicSubnet" : {
+      "Description" : "SubnetId of the public subnet",
+      "Value" : {
+        "Ref" : "PublicDMZSubnet"
+      }
+    },
+    "DataTierSubnet1" : {
+      "Description" : "SubnetId of the public subnet",
+      "Value" : {
+        "Ref" : "DataTierSubnet1"
+      }
+    },
+    "DataTierSubnet2" : {
+      "Description" : "SubnetId of the public subnet",
+      "Value" : {
+        "Ref" : "DataTierSubnet2"
+      }
+    }
+  }
+}
